@@ -6,7 +6,7 @@ import { images } from "../../constants";
 import FormField from "../../components/FormField";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
-import { getCurrentUser, signIn } from "../../lib/appwrite";
+import { getCurrentUser, signIn, account } from "../../lib/appwrite";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignIn = () => {
@@ -16,17 +16,28 @@ const SignIn = () => {
     password: "",
   });
 
-  const [isSubmitting, setIsSubmitting] = useState();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!form.email || !form.password) {
       Alert.alert("Error", "Please fill in all fields");
+      return;
     }
 
     setIsSubmitting(true);
 
     try {
-      await signIn(form.email, form.password);
+      // cek apakah sudah ada session aktif
+      const existingUser = await getCurrentUser();
+      if (existingUser) {
+        setUser(existingUser);
+        setIsLoggedIn(true);
+        router.replace("/home");
+        return;
+      }
+
+      // login baru
+      await signIn(form.email.trim(), form.password.trim());
       const result = await getCurrentUser();
       setUser(result);
       setIsLoggedIn(true);
@@ -34,7 +45,22 @@ const SignIn = () => {
       Alert.alert("Success", "User Signed in successfully");
       router.replace("/home");
     } catch (error) {
-      Alert.alert("Error", error.message);
+      // kalau session masih aktif → hapus session lalu login ulang
+      if (error.message.includes("session is active") || error.message.includes("guests")) {
+        try {
+          await account.deleteSession("current");
+          await signIn(form.email.trim(), form.password.trim());
+          const result = await getCurrentUser();
+          setUser(result);
+          setIsLoggedIn(true);
+          router.replace("/home");
+          return;
+        } catch (e) {
+          Alert.alert("Error", e.message);
+        }
+      } else {
+        Alert.alert("Error", error.message);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -57,12 +83,7 @@ const SignIn = () => {
           <FormField
             title="Email"
             value={form.email}
-            handleChangeText={(e) =>
-              setForm({
-                ...form,
-                email: e,
-              })
-            }
+            handleChangeText={(e) => setForm({ ...form, email: e })}
             otherStyle="mt-7"
             keyboardType="email-address"
           />
@@ -70,14 +91,10 @@ const SignIn = () => {
           <FormField
             title="Password"
             value={form.password}
-            handleChangeText={(e) =>
-              setForm({
-                ...form,
-                password: e,
-              })
-            }
+            handleChangeText={(e) => setForm({ ...form, password: e })}
             otherStyle="mt-7"
           />
+
           <CustomButton
             title="Sign in"
             containerStyle="mt-5"

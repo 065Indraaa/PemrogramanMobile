@@ -6,38 +6,51 @@ import { images } from "../../constants";
 import FormField from "../../components/FormField";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
-import { createUser } from "../../lib/appwrite";
+import { createUser, signIn, account } from "../../lib/appwrite";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignUp = () => {
   const { setUser, setIsLoggedIn } = useGlobalContext();
-
   const [form, setForm] = useState({
     username: "",
     email: "",
     password: "",
   });
 
-  const [isSubmitting, setIsSubmitting] = useState();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!form.username || !form.email || !form.password) {
       Alert.alert("Error", "Please fill in all fields");
+      return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const result = await createUser(form.email, form.password, form.username);
+      // hapus session lama jika ada
+      try {
+        await account.deleteSession("current");
+      } catch (err) {
+        // abaikan jika belum ada session
+      }
+
+      const email = form.email.trim().toLowerCase();
+      const username = form.username.trim();
+      const password = form.password.trim();
+
+      // buat user baru + simpan ke database
+      const result = await createUser(email, password, username);
+
       setUser(result);
       setIsLoggedIn(true);
       router.replace("/home");
     } catch (error) {
-      Alert.alert("Error", error.message);
+      console.log("SignUp error:", error);
+      Alert.alert("Error", error.message || "Failed to sign up");
     } finally {
       setIsSubmitting(false);
     }
-    //createUser();
   };
 
   return (
@@ -57,12 +70,7 @@ const SignUp = () => {
           <FormField
             title="Username"
             value={form.username}
-            handleChangeText={(e) =>
-              setForm({
-                ...form,
-                username: e,
-              })
-            }
+            handleChangeText={(e) => setForm({ ...form, username: e })}
             otherStyle="mt-7"
             keyboardType="Username"
           />
@@ -70,12 +78,7 @@ const SignUp = () => {
           <FormField
             title="Email"
             value={form.email}
-            handleChangeText={(e) =>
-              setForm({
-                ...form,
-                email: e,
-              })
-            }
+            handleChangeText={(e) => setForm({ ...form, email: e })}
             otherStyle="mt-7"
             keyboardType="email-address"
           />
@@ -83,14 +86,10 @@ const SignUp = () => {
           <FormField
             title="Password"
             value={form.password}
-            handleChangeText={(e) =>
-              setForm({
-                ...form,
-                password: e,
-              })
-            }
+            handleChangeText={(e) => setForm({ ...form, password: e })}
             otherStyle="mt-7"
           />
+
           <CustomButton
             title="Sign Up"
             containerStyle="mt-5"
