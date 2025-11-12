@@ -3,14 +3,15 @@ import React, { useState } from "react";
 import { icons } from "../constants";
 import { ResizeMode, Video } from "expo-av";
 
-const VideoCard = ({
-  videos: {
-    title,
-    thumbnail,
-    video,
-    creator: { username, avatar },
-  },
-}) => {
+const VideoCard = ({ videos }) => {
+  const title = videos?.title ?? "";
+  const thumbnail = videos?.thumbnail ?? "";
+  const video = videos?.video ?? "";
+  const creator = videos?.creator;
+  const username =
+    creator && typeof creator === "object" ? creator.username ?? "" : "";
+  const avatar =
+    creator && typeof creator === "object" ? creator.avatar ?? "" : "";
   const [play, setPlay] = useState(false);
   //console.log(thumbnail);
   return (
