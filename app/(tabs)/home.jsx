@@ -5,7 +5,7 @@ import { images } from "../../constants";
 import SearchInput from "../../components/SearchInput";
 import Trending from "../../components/Trending";
 import EmptyState from "../../components/EmptyState";
-import { getAllPost, getLatestVideos } from "../../lib/appwrite";
+import { getUserPost, getLatestVideosByUser } from "../../lib/appwrite";
 import useAppwrite from "../../lib/useAppwrite";
 import VideoCard from "../../components/VideoCard";
 import { useGlobalContext } from "../../context/GlobalProvider";
@@ -14,12 +14,12 @@ const Home = () => {
   const [refreshing, setRefreshing] = useState(false);
   const {user}  = useGlobalContext();
 
-  const { data: posts, refetch } = useAppwrite(getAllPost);
-  const { data: latest } = useAppwrite(getLatestVideos);
+  const { data: posts, refetch } = useAppwrite(() => (user?.$id ? getUserPost(user.$id) : Promise.resolve([])));
+  const { data: latest, refetch: refetchLatest } = useAppwrite(() => (user?.$id ? getLatestVideosByUser(user.$id) : Promise.resolve([])));
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchLatest()]);
     setRefreshing(false);
   };
 
@@ -28,7 +28,15 @@ const Home = () => {
       <FlatList
         data={posts ?? []}
         keyExtractor={(item) => item.$id}
-        renderItem={({ item }) => <VideoCard key={item.$id} videos={item} />}
+        renderItem={({ item }) => (
+          <VideoCard
+            key={item.$id}
+            videos={item}
+            onEdit={() => { refetch(); refetchLatest(); }}
+            onDelete={() => { refetch(); refetchLatest(); }}
+            onBookmarkToggle={refetch}
+          />
+        )}
         ListHeaderComponent={({}) => (
           <View className="my-6 px-4 space-y-4">
             <View className="justify-between items-start flex-row mb-6">

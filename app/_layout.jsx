@@ -1,3 +1,5 @@
+import "react-native-gesture-handler";
+import "react-native-url-polyfill/auto";
 import React, { useEffect } from "react";
 import "react-native-reanimated";
 import { SplashScreen, Stack } from "expo-router";

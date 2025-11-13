@@ -12,13 +12,13 @@ import { getUserPost, signOut } from "../../lib/appwrite";
 import useAppwrite from "../../lib/useAppwrite";
 import VideoCard from "../../components/VideoCard";
 import { useGlobalContext } from "../../context/GlobalProvider";
-import { icons } from "../../constants";
+import { icons, images } from "../../constants";
 import InfoBox from "../../components/InfoBox";
 import { router } from "expo-router";
 
 const Profile = () => {
   const { user, setUser, setIsLoggedIn } = useGlobalContext();
-  const { data: posts } = useAppwrite(() => (user?.$id ? getUserPost(user.$id) : Promise.resolve([])));
+  const { data: posts, refetch } = useAppwrite(() => (user?.$id ? getUserPost(user.$id) : Promise.resolve([])));
 
   const logout = async () => {
     await signOut();
@@ -33,7 +33,14 @@ const Profile = () => {
       <FlatList
         data={posts ?? []}
         keyExtractor={(item) => item.$id}
-        renderItem={({ item }) => <VideoCard videos={item} />}
+        renderItem={({ item }) => (
+          <VideoCard
+            videos={item}
+            onEdit={refetch}
+            onDelete={refetch}
+            onBookmarkToggle={refetch}
+          />
+        )}
         ListHeaderComponent={({}) => (
           <View className="w-full mt-6 mb-12 px-4 justify-center items-center">
             <TouchableOpacity
@@ -48,7 +55,7 @@ const Profile = () => {
             </TouchableOpacity>
             <View className="w-16 h-16 border border-secondary-100 rounded-lg justify-center items-center">
               <Image
-                source={{ uri: user?.avatar }}
+                source={user?.avatar ? { uri: user.avatar } : images.profile}
                 className="w-[90%] h-[90%] rounded-lg"
                 resizeMode="cover"
               />
@@ -61,14 +68,8 @@ const Profile = () => {
 
             <View className="flex flex-row mt-5">
               <InfoBox
-                title={posts.length || 0}
-                subtitle="Posts"
-                titleStyles="text-xl"
-                containerStyles="mr-10"
-              />
-              <InfoBox
-                title="1.2k"
-                subtitle="Followers"
+                title={Array.isArray(posts) ? posts.length : 0}
+                subtitle="Video Upload"
                 titleStyles="text-xl"
               />
             </View>

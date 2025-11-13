@@ -18,7 +18,7 @@ const CustomButton = ({
       disabled={isLoading}
     >
       <Text className={`text-primary font-psemibold text-lg ${textStyle}`}>
-        {title}
+        {isLoading ? "Processing..." : title}
       </Text>
     </TouchableOpacity>
   );

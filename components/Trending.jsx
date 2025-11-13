@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-import { icons } from "../constants";
+import { icons, images } from "../constants";
 
 const zoomIn = {
   0: {
@@ -54,12 +54,12 @@ const TrendingItem = ({ activeItem, item }) => {
         <TouchableOpacity
           className="relative flex justify-center items-center"
           activeOpacity={0.7}
-          onPress={() => setPlay(true)}
+          onPress={() => {
+            if (item?.video) setPlay(true);
+          }}
         >
           <ImageBackground
-            source={{
-              uri: item.thumbnail,
-            }}
+            source={item?.thumbnail ? { uri: item.thumbnail } : images.thumbnail}
             className="w-52 h-72 rounded-[33px] my-5 overflow-hidden shadow-lg shadow-black/40"
             resizeMode="cover"
           />

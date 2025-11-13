@@ -50,17 +50,17 @@ const Create = () => {
     title: "",
     thumbnail: null,
     video: null,
-    prompt: "",
+    description: "",
   });
 
   const handleSubmit = async () => {
-    if (!form.prompt || !form.title || !form.thumbnail || !form.video) {
+    if (!form.description || !form.title || !form.thumbnail || !form.video) {
       return Alert.alert("Please fill in all the fields");
     }
     setUploading(true);
     try {
       await createVideoPost({ ...form, userId: user.$id });
-      Alert.alert("sucessful", "Post uploaded");
+      Alert.alert("Success", "Post uploaded successfully.");
       router.push("/home");
     } catch (error) {
       Alert.alert("Error", error.message);
@@ -70,7 +70,7 @@ const Create = () => {
         title: "",
         thumbnail: null,
         video: null,
-        prompt: "",
+        description: "",
       });
     }
   };
@@ -81,9 +81,9 @@ const Create = () => {
           Upload Video
         </Text>
         <FormField
-          title="Create Video"
+          title="Title"
           value={form.title}
-          placeholder="Enter a catchy word"
+          placeholder="Enter a catchy title"
           handleChangeText={(e) => setForm({ ...form, title: e })}
           otherStyle="mt-10"
         />
@@ -140,17 +140,18 @@ const Create = () => {
           </TouchableOpacity>
         </View>
         <FormField
-          title="Prompt"
-          value={form.prompt}
-          placeholder="Enter the prompt you use"
-          handleChangeText={(e) => setForm({ ...form, prompt: e })}
+          title="Description"
+          value={form.description}
+          placeholder="Enter a brief description"
+          handleChangeText={(e) => setForm({ ...form, description: e })}
           otherStyle="mt-5 mb-4"
         />
 
         <CustomButton
           title="Submit & Publish"
           handlePress={handleSubmit}
-          otherStyle="mt-7"
+          containerStyle="mt-7"
+          isLoading={uploading}
         />
       </ScrollView>
     </SafeAreaView>

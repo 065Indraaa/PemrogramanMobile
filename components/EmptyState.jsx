@@ -20,7 +20,7 @@ export default function EmptyState({ title, subtitle }) {
       <CustomButton
         title="Create Video"
         containerStyle="w-full my-5"
-        handlePress={() => router.push("create")}
+        handlePress={() => router.push("/create")}
       />
     </View>
   );

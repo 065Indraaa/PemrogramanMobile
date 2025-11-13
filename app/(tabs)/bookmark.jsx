@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, FlatList, Alert, TouchableOpacity, ScrollView, Image, ActivityIndicator } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, FlatList, Alert, TouchableOpacity, ScrollView, ActivityIndicator, Image, Dimensions, Modal, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -30,6 +30,13 @@ const Bookmark = () => {
   const [albumSelectorVisible, setAlbumSelectorVisible] = useState(false);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  const [albumHeaderMenuVisible, setAlbumHeaderMenuVisible] = useState(false);
+  const [albumHeaderMenuPos, setAlbumHeaderMenuPos] = useState({ top: 0, left: 0 });
+  const [editAlbumVisible, setEditAlbumVisible] = useState(false);
+  const [editAlbumName, setEditAlbumName] = useState("");
+  const [editAlbumDesc, setEditAlbumDesc] = useState("");
+  const albumMenuAnchorRef = useRef(null);
+  
 
   // Fetch bookmarked posts filtered by selected album
   const refetch = useCallback(async () => {
@@ -339,10 +346,39 @@ const Bookmark = () => {
           <View className="flex-row items-center">
             <TouchableOpacity
               onPress={() => setAlbumSelectorVisible(true)}
-              className="bg-secondary rounded-lg px-4 py-2"
+              className="bg-secondary rounded-lg px-4 py-2 mr-2"
             >
               <Text className="text-primary font-psemibold">+ Album</Text>
             </TouchableOpacity>
+            <View ref={albumMenuAnchorRef} collapsable={false}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (albumMenuAnchorRef.current && albumMenuAnchorRef.current.measureInWindow) {
+                    albumMenuAnchorRef.current.measureInWindow((x, y, width, height) => {
+                      const screenW = Dimensions.get("window").width || 360;
+                      const menuW = 200;
+                      const rawLeft = (Number(x) || 0) + (Number(width) || 0) - menuW;
+                      const clampedLeft = Math.min(Math.max(rawLeft, 8), screenW - menuW - 8);
+                      const rawTop = (Number(y) || 0) + (Number(height) || 0) + 6;
+                      const safeTop = Number.isFinite(rawTop) ? rawTop : 48;
+                      const safeLeft = Number.isFinite(clampedLeft) ? clampedLeft : Math.max(screenW - menuW - 8, 8);
+                      setAlbumHeaderMenuPos({ top: safeTop, left: safeLeft });
+                      // preload selected album fields
+                      const sel = albums.find((a) => a.$id === selectedAlbum);
+                      setEditAlbumName(sel?.name || "");
+                      setEditAlbumDesc(sel?.description || "");
+                      setAlbumHeaderMenuVisible(true);
+                    });
+                  } else {
+                    const screenW = Dimensions.get("window").width || 360;
+                    setAlbumHeaderMenuPos({ top: 48, left: Math.max(screenW - 200 - 8, 8) });
+                    setAlbumHeaderMenuVisible(true);
+                  }
+                }}
+              >
+                <Image source={icons.menu} style={{ width: 20, height: 20 }} resizeMode="contain" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
         <Text className="text-gray-400 text-sm font-pregular">
@@ -394,7 +430,6 @@ const Bookmark = () => {
           <TouchableOpacity
             key={album.$id}
             onPress={() => setSelectedAlbum(album.$id)}
-            onLongPress={() => handleDeleteAlbum(album.$id)}
             className={`mr-3 px-4 py-2 rounded-full ${
               selectedAlbum === album.$id ? "bg-secondary" : "bg-black-100"
             }`}
@@ -458,8 +493,14 @@ const Bookmark = () => {
           return (
             <VideoCard
               videos={item}
-              onEdit={refetch}
-              onDelete={() => handleDelete(safeId)}
+              onEdit={() => {
+                refetch();
+                loadAlbumsAndCounts();
+              }}
+              onDelete={() => {
+                refetch();
+                loadAlbumsAndCounts();
+              }}
               onBookmarkToggle={() => {
                 refetch();
                 loadAlbumsAndCounts();
@@ -489,7 +530,7 @@ const Bookmark = () => {
         contentContainerStyle={{ paddingBottom: 24 }}
       />
 
-      {/* Album Selector for Creating New Albums */}
+      
       <AlbumSelector
         visible={albumSelectorVisible}
         onClose={() => setAlbumSelectorVisible(false)}
@@ -500,9 +541,109 @@ const Bookmark = () => {
             setSelectedAlbum(album.$id);
           }
           loadAlbumsAndCounts();
+          refetch();
         }}
         currentAlbumId={selectedAlbum}
       />
+
+      {/* Header album options menu */}
+      <Modal transparent visible={albumHeaderMenuVisible} animationType="fade" onRequestClose={() => setAlbumHeaderMenuVisible(false)}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setAlbumHeaderMenuVisible(false)}>
+          <View style={{ position: "absolute", top: Number.isFinite(albumHeaderMenuPos.top) ? albumHeaderMenuPos.top : 48, left: Number.isFinite(albumHeaderMenuPos.left) ? albumHeaderMenuPos.left : Math.max((Dimensions.get("window").width || 360) - 200 - 8, 8), backgroundColor: "#0b1220", borderRadius: 8, borderWidth: 1, borderColor: "#334155", padding: 8, width: 200 }}>
+            {selectedAlbum && (
+              <>
+                <TouchableOpacity
+                  onPress={() => {
+                    setAlbumHeaderMenuVisible(false);
+                    const sel = albums.find((a) => a.$id === selectedAlbum);
+                    setEditAlbumName(sel?.name || "");
+                    setEditAlbumDesc(sel?.description || "");
+                    setEditAlbumVisible(true);
+                  }}
+                  style={{ paddingVertical: 6 }}
+                >
+                  <Text style={{ color: "#fff" }}>Edit Selected Album</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setAlbumHeaderMenuVisible(false);
+                    Alert.alert("Delete Album", "Are you sure?", [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            await deleteAlbum(selectedAlbum);
+                            // Reset to All after deletion
+                            setSelectedAlbum(undefined);
+                            await loadAlbumsAndCounts();
+                            await refetch();
+                          } catch (e) {
+                            Alert.alert("Error", e?.message || "Failed to delete album");
+                          }
+                        },
+                      },
+                    ]);
+                  }}
+                  style={{ paddingVertical: 6 }}
+                >
+                  <Text style={{ color: "#ef4444" }}>Delete Selected Album</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {!selectedAlbum && (
+              <View style={{ paddingVertical: 6 }}>
+                <Text style={{ color: "#94a3b8" }}>Select an album to manage</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Edit selected album modal */}
+      <Modal transparent visible={editAlbumVisible} animationType="slide" onRequestClose={() => setEditAlbumVisible(false)}>
+        <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <View style={{ backgroundColor: "#0b1220", borderRadius: 16, padding: 16 }}>
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "600", marginBottom: 12 }}>Edit Album</Text>
+            <TextInput
+              value={editAlbumName}
+              onChangeText={setEditAlbumName}
+              placeholder="Album Name"
+              placeholderTextColor="#7b7b8b"
+              style={{ backgroundColor: "#111827", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: "#fff", marginBottom: 10 }}
+            />
+            <TextInput
+              value={editAlbumDesc}
+              onChangeText={setEditAlbumDesc}
+              placeholder="Description (optional)"
+              placeholderTextColor="#7b7b8b"
+              style={{ backgroundColor: "#111827", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: "#fff", marginBottom: 14 }}
+              multiline
+            />
+            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <TouchableOpacity onPress={() => setEditAlbumVisible(false)} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#374151", borderRadius: 8, marginRight: 8 }}>
+                <Text style={{ color: "#fff" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    if (!selectedAlbum) return;
+                    await updateAlbum(selectedAlbum, { name: editAlbumName, description: editAlbumDesc });
+                    setEditAlbumVisible(false);
+                    await loadAlbumsAndCounts();
+                  } catch (e) {
+                    Alert.alert("Error", e?.message || "Failed to update album");
+                  }
+                }}
+                style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#FF9C01", borderRadius: 8 }}
+              >
+                <Text style={{ color: "#0b1220", fontWeight: "600" }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
