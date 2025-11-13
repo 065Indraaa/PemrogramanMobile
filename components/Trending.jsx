@@ -1,3 +1,4 @@
+// components/Trending.jsx
 import { useState } from "react";
 import { ResizeMode, Video } from "expo-av";
 import * as Animatable from "react-native-animatable";
@@ -6,26 +7,19 @@ import {
   Image,
   ImageBackground,
   TouchableOpacity,
+  Text,
 } from "react-native";
 
 import { icons } from "../constants";
 
 const zoomIn = {
-  0: {
-    scale: 0.9,
-  },
-  1: {
-    scale: 1,
-  },
+  0: { scale: 0.9 },
+  1: { scale: 1 },
 };
 
 const zoomOut = {
-  0: {
-    scale: 1,
-  },
-  1: {
-    scale: 0.9,
-  },
+  0: { scale: 1 },
+  1: { scale: 0.9 },
 };
 
 const TrendingItem = ({ activeItem, item }) => {
@@ -58,12 +52,11 @@ const TrendingItem = ({ activeItem, item }) => {
         >
           <ImageBackground
             source={{
-              uri: item.thumbnail,
+              uri: item.thumbnail || "https://via.placeholder.com/300x200?text=No+Thumbnail",
             }}
             className="w-52 h-72 rounded-[33px] my-5 overflow-hidden shadow-lg shadow-black/40"
             resizeMode="cover"
           />
-
           <Image
             source={icons.play}
             className="w-8 h-8 absolute"
@@ -71,12 +64,16 @@ const TrendingItem = ({ activeItem, item }) => {
           />
         </TouchableOpacity>
       )}
+      {/* Tambahkan description jika diinginkan */}
+      <Text className="text-white text-xs mt-1 text-center px-2" numberOfLines={2}>
+        {item.description || "No description available"}
+      </Text>
     </Animatable.View>
   );
 };
 
 const Trending = ({ posts }) => {
-  const [activeItem, setActiveItem] = useState(posts[0]);
+  const [activeItem, setActiveItem] = useState(posts[0]?.$id);
 
   const viewableItemsChanged = ({ viewableItems }) => {
     if (viewableItems.length > 0) {
