@@ -6,11 +6,10 @@ import { images } from "../../constants";
 import FormField from "../../components/FormField";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
-import { getCurrentUser, signIn, account } from "../../lib/appwrite";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignIn = () => {
-  const { setUser, setIsLoggedIn } = useGlobalContext();
+  const { login } = useGlobalContext();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -27,40 +26,13 @@ const SignIn = () => {
     setIsSubmitting(true);
 
     try {
-      // cek apakah sudah ada session aktif
-      const existingUser = await getCurrentUser();
-      if (existingUser) {
-        setUser(existingUser);
-        setIsLoggedIn(true);
-        router.replace("/home");
-        return;
-      }
-
-      // login baru
-      await signIn(form.email.trim(), form.password.trim());
-      const result = await getCurrentUser();
-      setUser(result);
-      setIsLoggedIn(true);
-
-      Alert.alert("Success", "User Signed in successfully");
+      // gunakan context.login yang sudah signIn + refreshUser otomatis
+      await login(form.email.trim(), form.password.trim());
+      Alert.alert("Success", "User signed in successfully");
       router.replace("/home");
     } catch (error) {
-      // kalau session masih aktif → hapus session lalu login ulang
-      if (error.message.includes("session is active") || error.message.includes("guests")) {
-        try {
-          await account.deleteSession("current");
-          await signIn(form.email.trim(), form.password.trim());
-          const result = await getCurrentUser();
-          setUser(result);
-          setIsLoggedIn(true);
-          router.replace("/home");
-          return;
-        } catch (e) {
-          Alert.alert("Error", e.message);
-        }
-      } else {
-        Alert.alert("Error", error.message);
-      }
+      console.error("SignIn error:", error);
+      Alert.alert("Error", error?.message || "Unable to login");
     } finally {
       setIsSubmitting(false);
     }
