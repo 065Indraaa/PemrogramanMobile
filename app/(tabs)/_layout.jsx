@@ -1,21 +1,31 @@
 import { View, Text, Image } from "react-native";
 import React from "react";
 import { Tabs, Redirect } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { icons } from "../../constants";
 
 const TabIcon = ({ icon, color, name, focused }) => {
   return (
     <View className="items-center justify-center gap-2">
-      <Image
-        source={icon}
-        resizeMode="contain"
-        tintColor={color}
-        className="w-5 h-5"
-      />
+      <LinearGradient
+        colors={["#A78BFA", "#C9A0DC", "#E8B4CE", "#FFB88C"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ borderRadius: 999, padding: 1 }}
+      >
+        <View style={{ padding: 10, borderRadius: 999, backgroundColor: focused ? "transparent" : "#0b1220" }}>
+          <Image
+            source={icon}
+            resizeMode="contain"
+            tintColor={focused ? "#fff" : color}
+            className="w-5 h-5"
+          />
+        </View>
+      </LinearGradient>
       <Text
         className={`${focused ? "font-psemibold" : "font-pregular"} text-xs`}
-        style={{color : color}}
+        style={{ color: focused ? "#ffffff" : color }}
       >
         {name}
       </Text>
@@ -29,14 +39,29 @@ const TabsLayout = () => {
       <Tabs
         screenOptions={{
           tabBarShowLabel: false,
-          tabBarActiveTintColor : "#FFA001",
+          tabBarActiveTintColor : "#FFB88C",
           tabBarInactiveTintColor : "#CDCDE0",
           tabBarStyle : {
-            backgroundColor: "#161622",
-            borderTopWidth : 1,
-            borderTopColor : "#232533",
+            backgroundColor: "transparent",
+            borderTopWidth : 0,
             height : 84
-          }
+          },
+          tabBarBackground: () => (
+            <View style={{ flex: 1 }}>
+              <LinearGradient
+                colors={["#0b1220", "#0f172a"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ flex: 1 }}
+              />
+              <LinearGradient
+                colors={["#A78BFA", "#FFB88C"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1 }}
+              />
+            </View>
+          )
 
         }}
       >

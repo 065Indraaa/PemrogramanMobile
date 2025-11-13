@@ -27,40 +27,20 @@ const SignIn = () => {
     setIsSubmitting(true);
 
     try {
-      // cek apakah sudah ada session aktif
-      const existingUser = await getCurrentUser();
-      if (existingUser) {
-        setUser(existingUser);
-        setIsLoggedIn(true);
-        router.replace("/home");
-        return;
-      }
-
-      // login baru
+      // login
       await signIn(form.email.trim(), form.password.trim());
       const result = await getCurrentUser();
-      setUser(result);
-      setIsLoggedIn(true);
-
-      Alert.alert("Success", "User Signed in successfully");
-      router.replace("/home");
-    } catch (error) {
-      // kalau session masih aktif → hapus session lalu login ulang
-      if (error.message.includes("session is active") || error.message.includes("guests")) {
-        try {
-          await account.deleteSession("current");
-          await signIn(form.email.trim(), form.password.trim());
-          const result = await getCurrentUser();
-          setUser(result);
-          setIsLoggedIn(true);
-          router.replace("/home");
-          return;
-        } catch (e) {
-          Alert.alert("Error", e.message);
-        }
+      
+      if (result) {
+        setUser(result);
+        setIsLoggedIn(true);
+        router.replace("/home");
       } else {
-        Alert.alert("Error", error.message);
+        Alert.alert("Error", "Failed to get user data");
       }
+    } catch (error) {
+      const errorMsg = error?.message || String(error) || "Sign in failed";
+      Alert.alert("Error", errorMsg);
     } finally {
       setIsSubmitting(false);
     }

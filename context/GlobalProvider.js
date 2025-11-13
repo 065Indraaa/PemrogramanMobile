@@ -10,10 +10,14 @@ const GlobalProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userVideos, setUserVideos] = useState([]);
+  const [allVideos, setAllVideos] = useState([]);
+  const [videosRefreshTrigger, setVideosRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    getCurrentUser()
-      .then((res) => {
+    const checkUser = async () => {
+      try {
+        const res = await getCurrentUser();
         if (res) {
           setIsLoggedIn(true);
           setUser(res);
@@ -21,11 +25,23 @@ const GlobalProvider = ({ children }) => {
           setIsLoggedIn(false);
           setUser(null);
         }
-      })
-      .finally(() => {
+      } catch (error) {
+        console.error("Error checking user:", error);
+        setIsLoggedIn(false);
+        setUser(null);
+      } finally {
         setIsLoading(false);
-      });
+      }
+    };
+    
+    checkUser();
   }, []);
+
+  // Trigger refresh across all pages
+  const triggerVideosRefresh = () => {
+    setVideosRefreshTrigger(prev => prev + 1);
+  };
+
   return (
     <GlobalContext.Provider
       value={{
@@ -34,6 +50,12 @@ const GlobalProvider = ({ children }) => {
         user,
         setUser,
         isLoading,
+        userVideos,
+        setUserVideos,
+        allVideos,
+        setAllVideos,
+        videosRefreshTrigger,
+        triggerVideosRefresh,
       }}
     >
       {children}

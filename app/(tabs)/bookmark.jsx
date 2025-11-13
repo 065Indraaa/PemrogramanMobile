@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View, Text, FlatList, Alert, TouchableOpacity, ScrollView, ActivityIndicator, Image, Dimensions, Modal, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import SearchInput from "../../components/SearchInput";
 import EmptyState from "../../components/EmptyState";
@@ -19,7 +20,13 @@ import {
 import { getAlbums, deleteAlbum, updateAlbum, getAlbumBookmarkCounts } from "../../lib/albums";
 
 const Bookmark = () => {
-  const { user } = useGlobalContext();
+  const { user, videosRefreshTrigger, triggerVideosRefresh } = useGlobalContext();
+  
+  // Memoize callbacks to prevent unnecessary re-renders
+  const getBookmarkedPostsFn = useCallback(
+    (albumId) => getBookmarkedPosts(user?.$id, albumId),
+    [user?.$id]
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [rawBookmarks, setRawBookmarks] = useState([]);
   const [cleaning, setCleaning] = useState(false);
@@ -60,6 +67,14 @@ const Bookmark = () => {
   useEffect(() => {
     refetch();
   }, [refetch]);
+
+  // Refetch when global refresh trigger changes (e.g., toggled in Home/Profile)
+  useEffect(() => {
+    if (videosRefreshTrigger > 0) {
+      refetch();
+      loadAlbumsAndCounts();
+    }
+  }, [videosRefreshTrigger, refetch, loadAlbumsAndCounts]);
 
   // fetch albums and bookmark counts
   const loadAlbumsAndCounts = useCallback(async () => {
@@ -344,12 +359,28 @@ const Bookmark = () => {
             {getFilterDisplayName()}
           </Text>
           <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={() => setAlbumSelectorVisible(true)}
-              className="bg-secondary rounded-lg px-4 py-2 mr-2"
+            <LinearGradient
+              colors={["#A78BFA", "#C9A0DC", "#E8B4CE", "#FFB88C"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderRadius: 8,
+                marginRight: 8,
+                borderWidth: 0.5,
+                borderColor: "rgba(255, 184, 140, 0.4)",
+              }}
             >
-              <Text className="text-primary font-psemibold">+ Album</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setAlbumSelectorVisible(true)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>+ Album</Text>
+              </TouchableOpacity>
+            </LinearGradient>
             <View ref={albumMenuAnchorRef} collapsable={false}>
               <TouchableOpacity
                 onPress={() => {
@@ -394,54 +425,54 @@ const Bookmark = () => {
         contentContainerStyle={{ paddingHorizontal: 16 }}
       >
         {/* All Bookmarks */}
-        <TouchableOpacity
-          onPress={() => setSelectedAlbum(undefined)}
-          className={`mr-3 px-4 py-2 rounded-full ${
-            selectedAlbum === undefined ? "bg-secondary" : "bg-black-100"
-          }`}
+        <LinearGradient
+          colors={["#A78BFA", "#C9A0DC", "#E8B4CE", "#FFB88C"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 999, padding: 1, marginRight: 12 }}
         >
-          <Text
-            className={`font-psemibold ${
-              selectedAlbum === undefined ? "text-primary" : "text-gray-100"
-            }`}
-          >
-            All ({Object.values(albumCounts).reduce((sum, count) => sum + count, 0)})
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => setSelectedAlbum(undefined)} activeOpacity={0.8}>
+            <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: selectedAlbum === undefined ? "transparent" : "#0b1220" }}>
+              <Text style={{ fontWeight: "600", color: selectedAlbum === undefined ? "#ffffff" : "#e5e7eb" }}>
+                All ({Object.values(albumCounts).reduce((sum, count) => sum + count, 0)})
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </LinearGradient>
 
         {/* Unassigned */}
-        <TouchableOpacity
-          onPress={() => setSelectedAlbum(null)}
-          className={`mr-3 px-4 py-2 rounded-full ${
-            selectedAlbum === null ? "bg-secondary" : "bg-black-100"
-          }`}
+        <LinearGradient
+          colors={["#A78BFA", "#C9A0DC", "#E8B4CE", "#FFB88C"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 999, padding: 1, marginRight: 12 }}
         >
-          <Text
-            className={`font-psemibold ${
-              selectedAlbum === null ? "text-primary" : "text-gray-100"
-            }`}
-          >
-            Unassigned ({albumCounts["unassigned"] || 0})
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => setSelectedAlbum(null)} activeOpacity={0.8}>
+            <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: selectedAlbum === null ? "transparent" : "#0b1220" }}>
+              <Text style={{ fontWeight: "600", color: selectedAlbum === null ? "#ffffff" : "#e5e7eb" }}>
+                Unassigned ({albumCounts["unassigned"] || 0})
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </LinearGradient>
 
         {/* User Albums */}
         {albums.map((album) => (
-          <TouchableOpacity
+          <LinearGradient
             key={album.$id}
-            onPress={() => setSelectedAlbum(album.$id)}
-            className={`mr-3 px-4 py-2 rounded-full ${
-              selectedAlbum === album.$id ? "bg-secondary" : "bg-black-100"
-            }`}
+            colors={["#A78BFA", "#C9A0DC", "#E8B4CE", "#FFB88C"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 999, padding: 1, marginRight: 12 }}
           >
-            <Text
-              className={`font-psemibold ${
-                selectedAlbum === album.$id ? "text-primary" : "text-gray-100"
-              }`}
-            >
-              {album.name} ({albumCounts[album.$id] || 0})
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => setSelectedAlbum(album.$id)} activeOpacity={0.8}>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: selectedAlbum === album.$id ? "transparent" : "#0b1220" }}>
+                <Text style={{ fontWeight: "600", color: selectedAlbum === album.$id ? "#ffffff" : "#e5e7eb" }}>
+                  {album.name} ({albumCounts[album.$id] || 0})
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </LinearGradient>
         ))}
 
         {loadingAlbums && (
@@ -496,15 +527,19 @@ const Bookmark = () => {
               onEdit={() => {
                 refetch();
                 loadAlbumsAndCounts();
+                triggerVideosRefresh();
               }}
               onDelete={() => {
                 refetch();
                 loadAlbumsAndCounts();
+                triggerVideosRefresh();
               }}
               onBookmarkToggle={() => {
                 refetch();
                 loadAlbumsAndCounts();
+                triggerVideosRefresh();
               }}
+              initialBookmarked={true}
             />
           );
         }}
@@ -549,7 +584,7 @@ const Bookmark = () => {
       {/* Header album options menu */}
       <Modal transparent visible={albumHeaderMenuVisible} animationType="fade" onRequestClose={() => setAlbumHeaderMenuVisible(false)}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setAlbumHeaderMenuVisible(false)}>
-          <View style={{ position: "absolute", top: Number.isFinite(albumHeaderMenuPos.top) ? albumHeaderMenuPos.top : 48, left: Number.isFinite(albumHeaderMenuPos.left) ? albumHeaderMenuPos.left : Math.max((Dimensions.get("window").width || 360) - 200 - 8, 8), backgroundColor: "#0b1220", borderRadius: 8, borderWidth: 1, borderColor: "#334155", padding: 8, width: 200 }}>
+          <View style={{ position: "absolute", top: Number.isFinite(albumHeaderMenuPos.top) ? albumHeaderMenuPos.top : 48, left: Number.isFinite(albumHeaderMenuPos.left) ? albumHeaderMenuPos.left : Math.max((Dimensions.get("window").width || 360) - 200 - 8, 8), backgroundColor: "#1a2332", borderRadius: 12, borderWidth: 1, borderColor: "#FF9C01", padding: 0, width: 220, shadowColor: "#FF9C01", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}>
             {selectedAlbum && (
               <>
                 <TouchableOpacity
@@ -560,9 +595,9 @@ const Bookmark = () => {
                     setEditAlbumDesc(sel?.description || "");
                     setEditAlbumVisible(true);
                   }}
-                  style={{ paddingVertical: 6 }}
+                  style={{ paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#2a3a4a" }}
                 >
-                  <Text style={{ color: "#fff" }}>Edit Selected Album</Text>
+                  <Text style={{ color: "#FF9C01", fontSize: 14, fontWeight: "600" }}>✏️ Edit Album</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -575,7 +610,6 @@ const Bookmark = () => {
                         onPress: async () => {
                           try {
                             await deleteAlbum(selectedAlbum);
-                            // Reset to All after deletion
                             setSelectedAlbum(undefined);
                             await loadAlbumsAndCounts();
                             await refetch();
@@ -586,15 +620,15 @@ const Bookmark = () => {
                       },
                     ]);
                   }}
-                  style={{ paddingVertical: 6 }}
+                  style={{ paddingVertical: 12, paddingHorizontal: 16 }}
                 >
-                  <Text style={{ color: "#ef4444" }}>Delete Selected Album</Text>
+                  <Text style={{ color: "#ff6b6b", fontSize: 14, fontWeight: "600" }}>🗑️ Delete Album</Text>
                 </TouchableOpacity>
               </>
             )}
             {!selectedAlbum && (
-              <View style={{ paddingVertical: 6 }}>
-                <Text style={{ color: "#94a3b8" }}>Select an album to manage</Text>
+              <View style={{ paddingVertical: 12, paddingHorizontal: 16 }}>
+                <Text style={{ color: "#94a3b8", fontSize: 13 }}>Select an album to manage</Text>
               </View>
             )}
           </View>
@@ -604,26 +638,26 @@ const Bookmark = () => {
       {/* Edit selected album modal */}
       <Modal transparent visible={editAlbumVisible} animationType="slide" onRequestClose={() => setEditAlbumVisible(false)}>
         <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24, backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <View style={{ backgroundColor: "#0b1220", borderRadius: 16, padding: 16 }}>
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "600", marginBottom: 12 }}>Edit Album</Text>
+          <View style={{ backgroundColor: "#0f172a", borderRadius: 16, padding: 20, borderWidth: 1, borderColor: "#FF9C01", shadowColor: "#FF9C01", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}>
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 16 }}>📁 Edit Album</Text>
             <TextInput
               value={editAlbumName}
               onChangeText={setEditAlbumName}
               placeholder="Album Name"
               placeholderTextColor="#7b7b8b"
-              style={{ backgroundColor: "#111827", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: "#fff", marginBottom: 10 }}
+              style={{ backgroundColor: "#1a2332", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: "#fff", marginBottom: 12, borderWidth: 1, borderColor: "#FF9C01" }}
             />
             <TextInput
               value={editAlbumDesc}
               onChangeText={setEditAlbumDesc}
               placeholder="Description (optional)"
               placeholderTextColor="#7b7b8b"
-              style={{ backgroundColor: "#111827", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: "#fff", marginBottom: 14 }}
+              style={{ backgroundColor: "#1a2332", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: "#fff", marginBottom: 16, borderWidth: 1, borderColor: "#FF9C01", minHeight: 80 }}
               multiline
             />
-            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-              <TouchableOpacity onPress={() => setEditAlbumVisible(false)} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#374151", borderRadius: 8, marginRight: 8 }}>
-                <Text style={{ color: "#fff" }}>Cancel</Text>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 10 }}>
+              <TouchableOpacity onPress={() => setEditAlbumVisible(false)} style={{ paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#2a3a4a", borderRadius: 10 }}>
+                <Text style={{ color: "#e0e0e0", fontWeight: "600" }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={async () => {
@@ -636,9 +670,9 @@ const Bookmark = () => {
                     Alert.alert("Error", e?.message || "Failed to update album");
                   }
                 }}
-                style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#FF9C01", borderRadius: 8 }}
+                style={{ paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#FF9C01", borderRadius: 10 }}
               >
-                <Text style={{ color: "#0b1220", fontWeight: "600" }}>Save</Text>
+                <Text style={{ color: "#0f172a", fontWeight: "700" }}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>

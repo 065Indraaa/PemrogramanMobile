@@ -6,7 +6,7 @@ import { images } from "../../constants";
 import FormField from "../../components/FormField";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
-import { createUser, signIn, account } from "../../lib/appwrite";
+import { createUser, account } from "../../lib/appwrite";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignUp = () => {
@@ -28,26 +28,26 @@ const SignUp = () => {
     setIsSubmitting(true);
 
     try {
-      // hapus session lama jika ada
       try {
         await account.deleteSession("current");
       } catch (err) {
-        // abaikan jika belum ada session
+        // ignore
       }
 
       const email = form.email.trim().toLowerCase();
       const username = form.username.trim();
       const password = form.password.trim();
 
-      // buat user baru + simpan ke database
       const result = await createUser(email, password, username);
 
-      setUser(result);
-      setIsLoggedIn(true);
-      router.replace("/home");
+      if (result) {
+        setUser(result);
+        setIsLoggedIn(true);
+        router.replace("/home");
+      }
     } catch (error) {
-      console.log("SignUp error:", error);
-      Alert.alert("Error", error.message || "Failed to sign up");
+      const errorMsg = error?.message || String(error) || "Failed to sign up";
+      Alert.alert("Error", errorMsg);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,35 +1,50 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { ResizeMode, Video } from "expo-av";
 import * as Animatable from "react-native-animatable";
-import {
-  FlatList,
-  Image,
-  ImageBackground,
-  TouchableOpacity,
-} from "react-native";
+import { FlatList, Image, View, TouchableOpacity } from "react-native";
 
 import { icons, images } from "../constants";
+
+// Normalize Appwrite thumbnail URL: if it's a preview URL, convert to view (original) URL
+const normalizePreviewUrl = (url) => {
+  if (!url || typeof url !== "string") return url;
+  try {
+    if (!url.includes("/preview")) return url;
+    const projectMatch = url.match(/project=([^&]+)/);
+    const project = projectMatch ? projectMatch[1] : "";
+    const base = url.split("/preview")[0];
+    const viewUrl = `${base}/view${project ? `?project=${project}` : ""}`;
+    return viewUrl;
+  } catch {
+    return url;
+  }
+};
 
 const zoomIn = {
   0: {
     scale: 0.9,
+    opacity: 0.8,
   },
   1: {
     scale: 1,
+    opacity: 1,
   },
 };
 
 const zoomOut = {
   0: {
     scale: 1,
+    opacity: 1,
   },
   1: {
     scale: 0.9,
+    opacity: 0.8,
   },
 };
 
 const TrendingItem = ({ activeItem, item }) => {
   const [play, setPlay] = useState(false);
+  const [thumbError, setThumbError] = useState(false);
 
   return (
     <Animatable.View
@@ -58,11 +73,14 @@ const TrendingItem = ({ activeItem, item }) => {
             if (item?.video) setPlay(true);
           }}
         >
-          <ImageBackground
-            source={item?.thumbnail ? { uri: item.thumbnail } : images.thumbnail}
-            className="w-52 h-72 rounded-[33px] my-5 overflow-hidden shadow-lg shadow-black/40"
-            resizeMode="cover"
-          />
+          <View className="w-52 h-72 rounded-[33px] my-5 overflow-hidden shadow-lg shadow-black/40 bg-black-100 justify-center items-center">
+            <Image
+              source={thumbError ? images.thumbnail : (item?.thumbnail ? { uri: normalizePreviewUrl(item.thumbnail) } : images.thumbnail)}
+              className="w-full h-full"
+              resizeMode="contain"
+              onError={() => setThumbError(true)}
+            />
+          </View>
 
           <Image
             source={icons.play}

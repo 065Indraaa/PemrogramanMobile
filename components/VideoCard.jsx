@@ -1,5 +1,5 @@
-import { View, Text, Image, TouchableOpacity, Modal, TextInput, Alert, Dimensions } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Image, TouchableOpacity, Modal, TextInput, Alert, Dimensions, ActivityIndicator } from "react-native";
+import React, { useEffect, useRef, useState, useCallback, memo } from "react";
 import { icons, images } from "../constants";
 import { ResizeMode, Video } from "expo-av";
 import AlbumSelector from "./AlbumSelector";
@@ -13,16 +13,34 @@ import {
   getRawBookmarks,
 } from "../lib/appwrite";
 
-const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
+// Normalize Appwrite thumbnail URL: if it's a preview URL, convert to view (original) URL
+const normalizePreviewUrl = (url) => {
+  if (!url || typeof url !== "string") return url;
+  try {
+    if (!url.includes("/preview")) return url;
+    const projectMatch = url.match(/project=([^&]+)/);
+    const project = projectMatch ? projectMatch[1] : "";
+    const base = url.split("/preview")[0];
+    const viewUrl = `${base}/view${project ? `?project=${project}` : ""}`;
+    return viewUrl;
+  } catch {
+    return url;
+  }
+};
+
+const VideoCard = memo(({ videos, onEdit, onDelete, onBookmarkToggle, initialBookmarked = false }) => {
   const title = videos?.title ?? "";
   const thumbnail = videos?.thumbnail ?? "";
   const video = videos?.video ?? "";
   const creator = videos?.creator;
   const description = videos?.description ?? "";
-  const username =
-    creator && typeof creator === "object" ? creator.username ?? "" : "";
-  const avatar =
-    creator && typeof creator === "object" ? creator.avatar ?? "" : "";
+  const { user, triggerVideosRefresh, videosRefreshTrigger } = useGlobalContext();
+  const isCreatorObj = creator && typeof creator === "object";
+  const creatorId = !isCreatorObj ? String(creator || "") : String(creator.$id || creator.id || "");
+  const useUserObj = !isCreatorObj && user?.$id && String(user.$id) === creatorId;
+  const displayUser = isCreatorObj ? creator : (useUserObj ? user : null);
+  const username = displayUser?.username ?? "";
+  const avatar = displayUser?.avatar ?? "";
   const [play, setPlay] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -30,8 +48,9 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
   const [editVisible, setEditVisible] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const [editDescription, setEditDescription] = useState(description);
-  const { user } = useGlobalContext();
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(!!initialBookmarked);
+  const [thumbnailLoading, setThumbnailLoading] = useState(true);
+  const [thumbError, setThumbError] = useState(false);
   const menuAnchorRef = useRef(null);
 
   useEffect(() => {
@@ -42,17 +61,21 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
         const list = await getRawBookmarks(user.$id);
         const vidId = String(videos?.$id ?? videos?.id ?? "");
         if (!vidId) return;
-        const exists = Array.isArray(list) && list.some((b) => String(b.video) === vidId);
+        const exists = Array.isArray(list) && list.some((b) => {
+          const bv = b?.video && typeof b.video === "object" ? (b.video.$id || b.video.id) : b?.video;
+          return String(bv || "") === vidId;
+        });
         if (mounted) setIsBookmarked(!!exists);
       } catch {}
     })();
     return () => {
       mounted = false;
     };
-  }, [user?.$id, videos?.$id]);
-  //console.log(thumbnail);
+  }, [user?.$id, videos?.$id, videosRefreshTrigger]);
+
   const avatarSource = avatar ? { uri: avatar } : images.profile;
-  const thumbSource = thumbnail ? { uri: thumbnail } : images.thumbnail;
+  const normalizedThumbUrl = normalizePreviewUrl(thumbnail);
+  const thumbSource = thumbError ? images.thumbnail : (normalizedThumbUrl ? { uri: normalizedThumbUrl } : images.thumbnail);
 
   return (
     <View className="flex-col items-center px-4 mb-14">
@@ -124,17 +147,19 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
         />
       ) : (
         <TouchableOpacity
-          className="w-full h-60 rounded-xl mt-3 relative justify-center items-center"
+          className="w-full h-60 rounded-xl mt-3 relative justify-center items-center bg-black-100 overflow-hidden"
           activeOpacity={0.5}
           onPress={() => {
             if (video) setPlay(true);
             else Alert.alert("Unavailable", "Video URL is missing.");
           }}
+          style={{ borderWidth: 1, borderColor: "rgba(167, 139, 250, 0.3)" }}
         >
           <Image
             source={thumbSource}
-            className="w-full h-full rounded-xl mt-3"
-            resizeMode="cover"
+            className="w-full h-full rounded-xl"
+            resizeMode="contain"
+            onError={() => setThumbError(true)}
           />
           <Image
             source={icons.play}
@@ -151,9 +176,9 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
 
       <Modal transparent visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={() => setMenuVisible(false)}>
-          <View style={{ position: "absolute", top: Number.isFinite(menuPos.top) ? menuPos.top : 48, left: Number.isFinite(menuPos.left) ? menuPos.left : Math.max((Dimensions.get("window").width || 360) - 180 - 8, 8), backgroundColor: "#0b1220", borderRadius: 8, borderWidth: 1, borderColor: "#334155", padding: 8, width: 180 }}>
+          <View style={{ position: "absolute", top: Number.isFinite(menuPos.top) ? menuPos.top : 48, left: Number.isFinite(menuPos.left) ? menuPos.left : Math.max((Dimensions.get("window").width || 360) - 180 - 8, 8), backgroundColor: "#1a2332", borderRadius: 12, borderWidth: 1, borderColor: "#FF9C01", padding: 0, width: 200, shadowColor: "#FF9C01", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}>
             <TouchableOpacity
-              className="py-2"
+              style={{ paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#2a3a4a" }}
               onPress={async () => {
                 setMenuVisible(false);
                 try {
@@ -163,19 +188,31 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
                     await deleteBookmarkByVideo(user.$id, vidId);
                     setIsBookmarked(false);
                     onBookmarkToggle && onBookmarkToggle();
-                    Alert.alert("Removed", "Removed from bookmarks.");
+                    if (!onBookmarkToggle) triggerVideosRefresh();
                   } else {
-                    setAlbumSelectorVisible(true);
+                    // Try to save directly to unassigned (no album)
+                    try {
+                      await createBookmark(user.$id, vidId, null);
+                      setIsBookmarked(true);
+                      onBookmarkToggle && onBookmarkToggle();
+                      if (!onBookmarkToggle) triggerVideosRefresh();
+                      Alert.alert("Success", "Added to bookmarks.");
+                    } catch (_) {
+                      // Fallback to album selector if direct save fails
+                      setAlbumSelectorVisible(true);
+                    }
                   }
                 } catch (e) {
                   Alert.alert("Error", e?.message || "Failed to toggle bookmark.");
                 }
               }}
             >
-              <Text className="text-white">{isBookmarked ? "Unbookmark" : "Bookmark"}</Text>
+              <Text style={{ color: "#FF9C01", fontSize: 14, fontWeight: "600" }}>
+                {isBookmarked ? "📌 Unbookmark" : "📌 Bookmark"}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className="py-2"
+              style={{ paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#2a3a4a" }}
               onPress={() => {
                 setMenuVisible(false);
                 setEditTitle(title);
@@ -183,10 +220,10 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
                 setEditVisible(true);
               }}
             >
-              <Text className="text-white">Edit</Text>
+              <Text style={{ color: "#e0e0e0", fontSize: 14, fontWeight: "600" }}>✏️ Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className="py-2"
+              style={{ paddingVertical: 12, paddingHorizontal: 16 }}
               onPress={async () => {
                 setMenuVisible(false);
                 Alert.alert("Delete Video", "Are you sure you want to delete this video?", [
@@ -207,7 +244,7 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
                 ]);
               }}
             >
-              <Text className="text-red-500">Delete</Text>
+              <Text style={{ color: "#ff6b6b", fontSize: 14, fontWeight: "600" }}>🗑️ Delete</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -224,6 +261,7 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
             onBookmarkToggle && onBookmarkToggle();
             setIsBookmarked(true);
             Alert.alert("Success", "Added to bookmarks.");
+            if (!onBookmarkToggle) triggerVideosRefresh();
           } catch (e) {
             Alert.alert("Error", e?.message || "Failed to bookmark.");
           }
@@ -232,29 +270,29 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
 
       <Modal transparent visible={editVisible} animationType="slide" onRequestClose={() => setEditVisible(false)}>
         <View className="flex-1 justify-center px-6 bg-black/50">
-          <View className="bg-primary rounded-2xl p-4">
-            <Text className="text-white text-lg font-psemibold mb-3">Edit Video</Text>
+          <View style={{ backgroundColor: "#0f172a", borderRadius: 16, padding: 20, borderWidth: 1, borderColor: "#FF9C01", shadowColor: "#FF9C01", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}>
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 16 }}>✏️ Edit Video</Text>
             <TextInput
-              className="bg-black-100 rounded-xl px-4 py-3 text-white font-pregular mb-3"
-              placeholder="Title"
+              style={{ backgroundColor: "#1a2332", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: "#fff", marginBottom: 12, borderWidth: 1, borderColor: "#FF9C01" }}
+              placeholder="Video Title"
               placeholderTextColor="#7b7b8b"
               value={editTitle}
               onChangeText={setEditTitle}
             />
             <TextInput
-              className="bg-black-100 rounded-xl px-4 py-3 text-white font-pregular mb-4"
-              placeholder="Description"
+              style={{ backgroundColor: "#1a2332", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: "#fff", marginBottom: 16, borderWidth: 1, borderColor: "#FF9C01", minHeight: 80 }}
+              placeholder="Video Description"
               placeholderTextColor="#7b7b8b"
               value={editDescription}
               onChangeText={setEditDescription}
               multiline
             />
-            <View className="flex-row justify-end">
-              <TouchableOpacity className="px-4 py-2 mr-2 bg-gray-700 rounded-lg" onPress={() => setEditVisible(false)}>
-                <Text className="text-white">Cancel</Text>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 10 }}>
+              <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#2a3a4a", borderRadius: 10, borderWidth: 0.5, borderColor: "rgba(167, 139, 250, 0.3)" }} onPress={() => setEditVisible(false)}>
+                <Text style={{ color: "#e0e0e0", fontWeight: "600" }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="px-4 py-2 bg-secondary rounded-lg"
+                style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 0.5, borderColor: "rgba(255, 184, 140, 0.4)", background: "linear-gradient(135deg, #A78BFA 0%, #C9A0DC 33%, #E8B4CE 66%, #FFB88C 100%)" }}
                 onPress={async () => {
                   try {
                     await updateVideoPost(videos.$id ?? videos.id, { title: editTitle, description: editDescription });
@@ -266,7 +304,7 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
                   }
                 }}
               >
-                <Text className="text-primary font-psemibold">Save</Text>
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -274,6 +312,8 @@ const VideoCard = ({ videos, onEdit, onDelete, onBookmarkToggle }) => {
       </Modal>
     </View>
   );
-};
+});
+
+VideoCard.displayName = "VideoCard";
 
 export default VideoCard;

@@ -1,5 +1,5 @@
 import { View, Text, FlatList, Image, RefreshControl } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "../../constants";
 import SearchInput from "../../components/SearchInput";
@@ -12,16 +12,40 @@ import { useGlobalContext } from "../../context/GlobalProvider";
 
 const Home = () => {
   const [refreshing, setRefreshing] = useState(false);
-  const {user}  = useGlobalContext();
+  const { user, videosRefreshTrigger, triggerVideosRefresh } = useGlobalContext();
 
-  const { data: posts, refetch } = useAppwrite(() => (user?.$id ? getUserPost(user.$id) : Promise.resolve([])));
-  const { data: latest, refetch: refetchLatest } = useAppwrite(() => (user?.$id ? getLatestVideosByUser(user.$id) : Promise.resolve([])));
+  const getUserPostFn = useCallback(() => 
+    user?.$id ? getUserPost(user.$id) : Promise.resolve([]), 
+    [user?.$id]
+  );
+  
+  const getLatestFn = useCallback(() => 
+    user?.$id ? getLatestVideosByUser(user.$id) : Promise.resolve([]), 
+    [user?.$id]
+  );
 
-  const onRefresh = async () => {
+  const { data: posts, refetch } = useAppwrite(getUserPostFn);
+  const { data: latest, refetch: refetchLatest } = useAppwrite(getLatestFn);
+
+  // Refetch when global trigger changes
+  useEffect(() => {
+    if (videosRefreshTrigger > 0) {
+      refetch();
+      refetchLatest();
+    }
+  }, [videosRefreshTrigger, refetch, refetchLatest]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([refetch(), refetchLatest()]);
     setRefreshing(false);
-  };
+  }, [refetch, refetchLatest]);
+
+  const handleVideoChange = useCallback(() => {
+    refetch();
+    refetchLatest();
+    triggerVideosRefresh();
+  }, [refetch, refetchLatest, triggerVideosRefresh]);
 
   return (
     <SafeAreaView className="bg-primary h-full">
@@ -32,9 +56,9 @@ const Home = () => {
           <VideoCard
             key={item.$id}
             videos={item}
-            onEdit={() => { refetch(); refetchLatest(); }}
-            onDelete={() => { refetch(); refetchLatest(); }}
-            onBookmarkToggle={refetch}
+            onEdit={handleVideoChange}
+            onDelete={handleVideoChange}
+            onBookmarkToggle={handleVideoChange}
           />
         )}
         ListHeaderComponent={({}) => (
