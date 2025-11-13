@@ -3,17 +3,19 @@ import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchInput from "../../components/SearchInput";
 import EmptyState from "../../components/EmptyState";
-import { getSearchPost } from "../../lib/appwrite";
+import { getUserSearchPost } from "../../lib/appwrite";
 import useAppwrite from "../../lib/useAppwrite";
 import VideoCard from "../../components/VideoCard";
 import { useLocalSearchParams } from "expo-router";
+import { useGlobalContext } from "../../context/GlobalProvider";
 
 const Search = () => {
   const { query } = useLocalSearchParams();
+  const { user } = useGlobalContext();
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: posts, refetch } = useAppwrite(() => getSearchPost(query));
+  const { data: posts, refetch } = useAppwrite(() => user?.$id && query ? getUserSearchPost(user.$id, query) : Promise.resolve([]));
 
   useEffect(() => {
     setRefreshing(true);
@@ -25,7 +27,7 @@ const Search = () => {
     <SafeAreaView className="bg-primary h-full">
       <FlatList
         data={posts ?? []}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.$id}
         renderItem={({ item }) => <VideoCard videos={item} />}
         ListHeaderComponent={({}) => (
           <View className="my-6 px-4">
